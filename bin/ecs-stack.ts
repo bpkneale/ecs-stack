@@ -2,7 +2,9 @@
 import 'source-map-support/register';
 import * as cdk from 'aws-cdk-lib';
 import { EcsStackStack } from '../lib/ecs-stack-stack';
+import { load } from '../config/config';
 
+const config = load();
 const app = new cdk.App();
 new EcsStackStack(app, 'EcsStackStack', {
   /* If you don't specify 'env', this stack will be environment-agnostic.
@@ -15,7 +17,8 @@ new EcsStackStack(app, 'EcsStackStack', {
 
   /* Uncomment the next line if you know exactly what Account and Region you
    * want to deploy the stack to. */
-  env: { account: '531181023012', region: 'ap-southeast-2' },
+  env: { account: config.account, region: config.region },
+  config
 
   /* For more information, see https://docs.aws.amazon.com/cdk/latest/guide/environments.html */
 });
