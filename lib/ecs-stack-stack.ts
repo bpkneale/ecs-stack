@@ -8,10 +8,11 @@ import * as rds from 'aws-cdk-lib/aws-rds';
 import * as ecs_patterns from "aws-cdk-lib/aws-ecs-patterns";
 import * as iam from 'aws-cdk-lib/aws-iam';
 import * as ecr from 'aws-cdk-lib/aws-ecr';
-import { StackConfig } from '../config/config';
+import * as secretsmanager from 'aws-cdk-lib/aws-secretsmanager';
+import { ClientStackConfig } from '../config/config';
 
 type EcsStackProps = StackProps & {
-  config: StackConfig
+  config: ClientStackConfig
 }
 
 export class EcsStackStack extends Stack {
@@ -28,11 +29,20 @@ export class EcsStackStack extends Stack {
       maxAzs: 2
     });
 
-    const credentials = rds.Credentials.fromGeneratedSecret('admin');
+    const secret = new secretsmanager.Secret(this, this.resourceName('rdsSecret'), {
+      generateSecretString: {
+        secretStringTemplate: JSON.stringify({ username: 'mysql' }),
+        generateStringKey: 'password',
+        excludeCharacters: "% +~`#$&*()|[]{}:;<>?!'/@\"\\"
+      },
+    });
 
     const rdsCluster = new rds.DatabaseCluster(this, this.resourceName('mysql'), {
       engine: rds.DatabaseClusterEngine.auroraMysql({ version: rds.AuroraMysqlEngineVersion.VER_2_08_1 }),
-      credentials,
+      credentials: {
+        username: 'admin',
+        password: secret.secretValueFromJson('password')
+      },
       defaultDatabaseName: 'db',
       instances: 1,
       instanceProps: {
@@ -62,7 +72,7 @@ export class EcsStackStack extends Stack {
         containerPort: 8000,
         image: ecs.ContainerImage.fromEcrRepository(ecrRepo),
         secrets: {
-          'MYSQL_PASSWORD': ecs.Secret.fromSecretsManager(credentials.secret!)
+          'MYSQL_PASSWORD': ecs.Secret.fromSecretsManager(secret)
         }
       },
       memoryLimitMiB: 512, // Default is 512
@@ -81,10 +91,10 @@ export class EcsStackStack extends Stack {
     ecrRepo.grantPull(taskDefinition.taskRole);
     
     // Allow fargate to read secret
-    credentials.secret?.grantRead(taskDefinition.taskRole);
+    secret.grantRead(taskDefinition.taskRole);
   }
 
   private resourceName(resource: string) {
-    return `${this._props.config.env}-${resource}`
+    return `${this._props.config.env}-${this._props.config.client}-${resource}`
   }
 }
