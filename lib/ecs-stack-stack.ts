@@ -38,7 +38,7 @@ export class EcsStackStack extends Stack {
     });
 
     const rdsCluster = new rds.DatabaseCluster(this, this.resourceName('mysql'), {
-      engine: rds.DatabaseClusterEngine.auroraMysql({ version: rds.AuroraMysqlEngineVersion.VER_2_08_1 }),
+      engine: rds.DatabaseClusterEngine.auroraMysql({ version: rds.AuroraMysqlEngineVersion.VER_2_10_2 }),
       credentials: {
         username: 'admin',
         password: secret.secretValueFromJson('password')
@@ -72,6 +72,7 @@ export class EcsStackStack extends Stack {
         containerPort: 8000,
         image: ecs.ContainerImage.fromEcrRepository(ecrRepo),
         secrets: {
+          // This pulls the secret at container startup and sets it as an env var
           'MYSQL_PASSWORD': ecs.Secret.fromSecretsManager(secret)
         }
       },
